@@ -22,6 +22,8 @@ import:
   batch_size: 2000                 # Attributes per MISP API call
   dry_run: false                   # Log what would be imported without writing to MISP
   dry_run_max_items: 5             # Max items per type in dry_run mode
+  publish: true                    # Publish events on creation (visible in feeds/correlations)
+  mappings_file: "/app/mappings.yml"  # Path to threat type / kill chain mappings
 
 tags:
   tlp: "tlp:amber"

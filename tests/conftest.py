@@ -29,6 +29,8 @@ def sample_config():
             "actors": True,
             "init_lookback_days": 30,
             "batch_size": 2000,
+            "publish": True,
+            "mappings_file": "/tmp/test_mappings.yml",
         },
         "tags": {
             "tlp": "tlp:amber",

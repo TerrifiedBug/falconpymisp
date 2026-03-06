@@ -36,6 +36,8 @@ class ImportConfig:
     batch_size: int = 2000
     dry_run: bool = False
     dry_run_max_items: int = 5
+    publish: bool = True
+    mappings_file: str = "/app/mappings.yml"
 
 
 @dataclass

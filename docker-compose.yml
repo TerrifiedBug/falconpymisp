@@ -3,5 +3,6 @@ services:
     build: .
     volumes:
       - ./config.yml:/app/config.yml:ro
+      - ./mappings.yml:/app/mappings.yml:ro
       - ./data:/app/data
     restart: "no"

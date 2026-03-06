@@ -52,6 +52,7 @@ class CSIndicator:
     actors: list[str] = field(default_factory=list)
     malware_families: list[str] = field(default_factory=list)
     kill_chains: list[str] = field(default_factory=list)
+    threat_types: list[str] = field(default_factory=list)
     labels: list[str] = field(default_factory=list)
 
     @classmethod
@@ -67,6 +68,7 @@ class CSIndicator:
             actors=raw.get("actors", []) or [],
             malware_families=raw.get("malware_families", []) or [],
             kill_chains=raw.get("kill_chains", []) or [],
+            threat_types=raw.get("threat_types", []) or [],
             labels=[lb.get("name", "") for lb in (raw.get("labels") or [])],
         )
 
