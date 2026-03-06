@@ -18,7 +18,7 @@ class JSONFormatter(logging.Formatter):
         for key, value in record.__dict__.items():
             if key not in self._SKIP_ATTRS:
                 entry[key] = value
-        return json.dumps(entry)
+        return json.dumps(entry, default=str)
 
 
 def setup_logging(level: str = "INFO", fmt: str = "json"):

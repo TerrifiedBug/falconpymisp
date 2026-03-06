@@ -39,14 +39,15 @@ class MISPClient:
         for attempt in range(MAX_RETRIES):
             try:
                 if method == "GET":
-                    resp = await self._session.get(url)
+                    request_cm = self._session.get(url)
                 elif method == "POST":
-                    resp = await self._session.post(url, data=body)
+                    request_cm = self._session.post(url, data=body)
                 else:
                     raise ValueError(f"Unsupported method: {method}")
-                if resp.status == 200:
-                    return await resp.json()
-                error_text = await resp.text()
+                async with request_cm as resp:
+                    if resp.status == 200:
+                        return await resp.json()
+                    error_text = await resp.text()
                 log.warning("misp_api_error", extra={"status": resp.status, "path": path, "attempt": attempt + 1, "error": error_text[:200]})
             except aiohttp.ClientError as e:
                 log.warning("misp_connection_error", extra={"path": path, "attempt": attempt + 1, "error": str(e)})

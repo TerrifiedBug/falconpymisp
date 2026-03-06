@@ -79,7 +79,9 @@ class IndicatorImporter:
         event = build_feed_event(indicator_type=cs_type, org_uuid=self._org_uuid,
             tlp_tag=self._tlp_tag, distribution=self._distribution)
         result = await self._misp.create_event(event)
-        event_id = str(result["Event"]["id"])
+        event_id = str(result.get("Event", {}).get("id", ""))
+        if not event_id:
+            raise RuntimeError(f"Failed to create feed event for type '{cs_type}': unexpected response")
         self._feed_events[cs_type] = event_id
         log.info("feed_event_created", extra={"type": cs_type, "event_id": event_id})
         return event_id

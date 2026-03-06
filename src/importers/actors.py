@@ -38,7 +38,9 @@ class ActorImporter:
             event = build_actor_event(actor, self._org_uuid, self._tlp_tag, self._distribution)
             try:
                 result = await self._misp.create_event(event)
-                event_id = str(result["Event"]["id"])
+                event_id = str(result.get("Event", {}).get("id", ""))
+                if not event_id:
+                    raise RuntimeError(f"Failed to create event for actor '{actor.name}': unexpected response")
                 count += 1
                 if self._galaxy_cache:
                     cluster = self._galaxy_cache.find(actor.name)

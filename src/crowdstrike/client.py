@@ -45,7 +45,7 @@ class CrowdStrikeClient:
                 yield CSIndicator.from_api(raw)
             if resources:
                 last_marker = resources[-1].get("_marker", "")
-                marker_filter = f"_marker:>='{last_marker}'"
+                marker_filter = f"_marker:>'{last_marker}'"
             else:
                 break
 

@@ -37,7 +37,9 @@ class ReportImporter:
             event = build_report_event(report, self._org_uuid, self._tlp_tag, self._distribution)
             try:
                 result = await self._misp.create_event(event)
-                event_id = result["Event"]["id"]
+                event_id = str(result.get("Event", {}).get("id", ""))
+                if not event_id:
+                    raise RuntimeError(f"Failed to create event for report '{report.name}': unexpected response")
                 count += 1
                 if self._galaxy_cache:
                     for actor in report.actors:
