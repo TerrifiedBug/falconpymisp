@@ -43,7 +43,7 @@ def build_indicator_attribute(indicator: CSIndicator, tags_config, mappings=None
     attr.to_ids = True
     attr.comment = f"CrowdStrike confidence: {indicator.malicious_confidence}"
     if indicator.malicious_confidence:
-        attr.add_tag(_make_tag(f"crowdstrike:confidence:{indicator.malicious_confidence}"))
+        attr.add_tag(_make_tag(f'crowdstrike:confidence="{indicator.malicious_confidence}"'))
     for actor in indicator.actors:
         attr.add_tag(_make_tag(f'crowdstrike:actor="{actor}"'))
     for family in indicator.malware_families:
@@ -69,7 +69,7 @@ def build_report_event(report: CSReport, org_uuid: str, tlp_tag: str, distributi
     event.analysis = 2
     event.threat_level_id = 2
     event.add_tag(_make_tag(tlp_tag))
-    event.add_tag(_make_tag(f"crowdstrike:report-type:{report.report_type}"))
+    event.add_tag(_make_tag(f'crowdstrike:report-type="{report.report_type}"'))
     if report.description:
         attr = MISPAttribute()
         attr.type = "text"
@@ -79,11 +79,11 @@ def build_report_event(report: CSReport, org_uuid: str, tlp_tag: str, distributi
         attr.comment = "CrowdStrike report description"
         event.add_attribute(**attr)
     for industry in report.target_industries:
-        event.add_tag(_make_tag(f"crowdstrike:target-industry:{industry}"))
+        event.add_tag(_make_tag(f'crowdstrike:target-industry="{industry}"'))
     for country in report.target_countries:
-        event.add_tag(_make_tag(f"crowdstrike:target-country:{country}"))
+        event.add_tag(_make_tag(f'crowdstrike:target-country="{country}"'))
     for actor in report.actors:
-        event.add_tag(_make_tag(f"crowdstrike:actor:{actor}"))
+        event.add_tag(_make_tag(f'crowdstrike:actor="{actor}"'))
     event.published = publish
     return event
 
@@ -99,7 +99,7 @@ def build_actor_event(actor: CSActor, org_uuid: str, tlp_tag: str, distribution:
     event.add_tag(_make_tag(tlp_tag))
     event.add_tag(_make_tag("crowdstrike:actor"))
     for motivation in actor.motivations:
-        event.add_tag(_make_tag(f"crowdstrike:motivation:{motivation}"))
+        event.add_tag(_make_tag(f'crowdstrike:motivation="{motivation}"'))
     if actor.description:
         attr = MISPAttribute()
         attr.type = "text"

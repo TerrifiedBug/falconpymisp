@@ -33,7 +33,7 @@ class TestCSIndicator:
             "malicious_confidence": "high", "published_date": 1709712000,
             "last_updated": 1709712000, "_marker": "1709712000.abc",
             "actors": ["FANCY BEAR"], "malware_families": ["njRAT"],
-            "kill_chains": ["C0005"],
+            "kill_chains": ["C0005"], "threat_types": ["RANSOMWARE"],
             "labels": [{"name": "MaliciousConfidence/High"}],
         }
         ind = CSIndicator.from_api(raw)
@@ -43,6 +43,7 @@ class TestCSIndicator:
         assert ind.marker == "1709712000.abc"
         assert "FANCY BEAR" in ind.actors
         assert "njRAT" in ind.malware_families
+        assert "RANSOMWARE" in ind.threat_types
 
 
 class TestCSReport:

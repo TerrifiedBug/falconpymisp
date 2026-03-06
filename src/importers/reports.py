@@ -87,7 +87,7 @@ class ReportImporter:
         return count
 
     async def _discover_existing(self):
-        events = await self._misp.search_events(org=self._org_uuid, tags=["crowdstrike:report-type:%"])
+        events = await self._misp.search_events(org=self._org_uuid, tags=["crowdstrike:report-type=%"])
         for event_wrapper in events:
             event = event_wrapper.get("Event", event_wrapper)
             self._existing_reports.add(event.get("info", ""))

@@ -9,7 +9,7 @@ log = get_logger(__name__)
 
 
 class Mappings:
-    def __init__(self, threat_types: dict[str, str] = None, kill_chain: dict[str, str] = None):
+    def __init__(self, threat_types: dict[str, str] | None = None, kill_chain: dict[str, str] | None = None):
         self._threat_types = {k.upper(): v for k, v in (threat_types or {}).items()}
         self._kill_chain = dict(kill_chain or {})
 
