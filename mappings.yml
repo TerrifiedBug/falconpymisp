@@ -1,0 +1,29 @@
+# CrowdStrike to MISP normalization mappings
+# Edit to add/override mappings. Unmapped values fall back to crowdstrike:threat-type="{raw}"
+
+threat_types:
+  RANSOMWARE: 'malware-type="Ransomware"'
+  ADWARE: 'malware-type="Adware"'
+  BACKDOOR: 'malware-type="Backdoor"'
+  PHISHING: 'incident-type="Phishing Activity"'
+  CRYPTOMINING: 'malware-type="Cryptocurrency Miner"'
+  DOWNLOADER: 'malware-type="Downloader"'
+  DROPPER: 'malware-type="Dropper"'
+  INFOSTEALER: 'malware-type="Infostealer"'
+  KEYLOGGER: 'malware-type="Keylogger"'
+  RAT: 'malware-type="Remote Access Trojan"'
+  WIPER: 'malware-type="Wiper"'
+  WEBSHELL: 'malware-type="Webshell"'
+  WORM: 'malware-type="Worm"'
+  BOTNET: 'malware-type="Botnet"'
+  EXPLOIT: 'malware-type="Exploit"'
+  ROOTKIT: 'malware-type="Rootkit"'
+  TROJAN: 'malware-type="Trojan"'
+  SPYWARE: 'malware-type="Spyware"'
+  LOADER: 'malware-type="Loader"'
+  SCAM: 'incident-type="Scam Activity"'
+
+kill_chain:
+  actions_and_objectives: "action-on-objectives"
+  actions_on_objectives: "action-on-objectives"
+  command_and_control: "command-control"
