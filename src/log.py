@@ -21,17 +21,19 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(entry, default=str)
 
 
-def setup_logging(level: str = "INFO", fmt: str = "json"):
+def setup_logging(level: str = "INFO", fmt: str = "json", log_file: str = None):
     root = logging.getLogger()
     root.handlers.clear()
+    formatter = JSONFormatter() if fmt == "json" else logging.Formatter(
+        "%(asctime)s %(levelname)s %(name)s %(message)s"
+    )
     handler = logging.StreamHandler(sys.stderr)
-    if fmt == "json":
-        handler.setFormatter(JSONFormatter())
-    else:
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
-        )
+    handler.setFormatter(formatter)
     root.addHandler(handler)
+    if log_file:
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(formatter)
+        root.addHandler(file_handler)
     root.setLevel(getattr(logging, level.upper(), logging.INFO))
 
 

@@ -98,7 +98,7 @@ def main():
     except ConfigError as e:
         print(f"Configuration error: {e}", file=sys.stderr)
         sys.exit(1)
-    setup_logging(level=config.logging.level, fmt=config.logging.format)
+    setup_logging(level=config.logging.level, fmt=config.logging.format, log_file=config.logging.file)
     log.info("falcon_misp_import_start", extra={"config_path": config_path})
     asyncio.run(run_import(config))
 

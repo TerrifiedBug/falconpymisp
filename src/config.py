@@ -59,6 +59,7 @@ class TagsConfig:
 class LoggingConfig:
     level: str = "INFO"
     format: str = "json"
+    file: Optional[str] = None
 
 
 @dataclass
