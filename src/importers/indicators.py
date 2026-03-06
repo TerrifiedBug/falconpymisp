@@ -17,7 +17,8 @@ PROGRESS_INTERVAL = 5000
 class IndicatorImporter:
     def __init__(self, cs_client: CrowdStrikeClient, misp_client: MISPClient,
                  state: ImportState, batch_size: int = 2000, org_uuid: str = "",
-                 tlp_tag: str = "tlp:amber", distribution: int = 0, tags_config=None):
+                 tlp_tag: str = "tlp:amber", distribution: int = 0, tags_config=None,
+                 dry_run: bool = False, max_items: int = 0, init_lookback_days: int = 30):
         self._cs = cs_client
         self._misp = misp_client
         self._state = state
@@ -26,21 +27,44 @@ class IndicatorImporter:
         self._tlp_tag = tlp_tag
         self._distribution = distribution
         self._tags_config = tags_config
+        self._dry_run = dry_run
+        self._max_items = max_items
+        self._init_lookback_days = init_lookback_days
         self._feed_events: dict[str, str] = {}
         self._buffers: dict[str, list[MISPAttribute]] = defaultdict(list)
         self._last_marker: Optional[str] = None
         self._count = 0
 
     async def run(self) -> int:
-        log.info("indicator_import_start", extra={"from_marker": self._state.indicators.last_marker})
-        await self._discover_feed_events()
+        log.info("indicator_import_start", extra={
+            "from_marker": self._state.indicators.last_marker, "dry_run": self._dry_run,
+        })
+        if not self._dry_run:
+            await self._discover_feed_events()
         from_marker = self._state.indicators.last_marker
+        published_filter = None
+        if from_marker is None and self._init_lookback_days:
+            from datetime import datetime, timezone, timedelta
+            cutoff = datetime.now(timezone.utc) - timedelta(days=self._init_lookback_days)
+            published_filter = int(cutoff.timestamp())
         indicators = await asyncio.to_thread(
-            lambda: list(self._cs.get_indicators(from_marker=from_marker))
+            lambda: list(self._cs.get_indicators(
+                from_marker=from_marker, published_filter=published_filter,
+            ))
         )
         for indicator in indicators:
+            if self._max_items and self._count >= self._max_items:
+                log.info("dry_run_limit_reached", extra={"max_items": self._max_items})
+                break
             attr = build_indicator_attribute(indicator, self._tags_config)
             if attr is None:
+                continue
+            if self._dry_run:
+                log.info("dry_run_indicator", extra={
+                    "type": indicator.cs_type, "value": indicator.value,
+                    "confidence": indicator.malicious_confidence,
+                })
+                self._count += 1
                 continue
             self._buffers[indicator.cs_type].append(attr)
             self._last_marker = indicator.marker
@@ -49,15 +73,16 @@ class IndicatorImporter:
                 await self._flush_buffer(indicator.cs_type)
             if self._count % PROGRESS_INTERVAL == 0:
                 log.info("indicator_progress", extra={"processed": self._count, "marker": self._last_marker})
-        for cs_type in list(self._buffers.keys()):
-            if self._buffers[cs_type]:
-                await self._flush_buffer(cs_type)
-        if self._last_marker:
-            self._state.indicators.last_marker = self._last_marker
-        self._state.indicators.total_imported += self._count
-        self._state.update_run_time("indicators")
-        self._state.save()
-        log.info("indicator_import_complete", extra={"total": self._count, "marker": self._last_marker})
+        if not self._dry_run:
+            for cs_type in list(self._buffers.keys()):
+                if self._buffers[cs_type]:
+                    await self._flush_buffer(cs_type)
+            if self._last_marker:
+                self._state.indicators.last_marker = self._last_marker
+            self._state.indicators.total_imported += self._count
+            self._state.update_run_time("indicators")
+            self._state.save()
+        log.info("indicator_import_complete", extra={"total": self._count, "marker": self._last_marker, "dry_run": self._dry_run})
         return self._count
 
     async def _discover_feed_events(self):

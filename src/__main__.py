@@ -1,6 +1,6 @@
 import asyncio
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from src.config import AppConfig, ConfigError, load_config
 from src.log import setup_logging, get_logger
@@ -15,7 +15,16 @@ from src.importers.actors import ActorImporter
 log = get_logger(__name__)
 
 
+def _lookback_timestamp(days: int) -> int:
+    """Calculate Unix timestamp for N days ago."""
+    return int((datetime.now(timezone.utc) - timedelta(days=days)).timestamp())
+
+
 async def run_import(config: AppConfig):
+    dry_run = config.import_.dry_run
+    if dry_run:
+        log.info("dry_run_enabled", extra={"max_items": config.import_.dry_run_max_items})
+
     cs_client = CrowdStrikeClient(
         client_id=config.crowdstrike.client_id,
         client_secret=config.crowdstrike.client_secret,
@@ -33,6 +42,7 @@ async def run_import(config: AppConfig):
             log.error("misp_connection_failed")
             return
         state = ImportState(config.state_file)
+        lookback_ts = _lookback_timestamp(config.import_.init_lookback_days)
         galaxy_cache = GalaxyCache()
         await galaxy_cache.load(misp_client)
         start_time = datetime.now(timezone.utc)
@@ -42,7 +52,9 @@ async def run_import(config: AppConfig):
                 cs_client=cs_client, misp_client=misp_client, state=state,
                 batch_size=config.import_.batch_size, org_uuid=config.misp.org_uuid,
                 tlp_tag=config.tags.tlp, distribution=config.misp.distribution,
-                tags_config=config.tags,
+                tags_config=config.tags, dry_run=dry_run,
+                max_items=config.import_.dry_run_max_items if dry_run else 0,
+                init_lookback_days=config.import_.init_lookback_days,
             )
             totals["indicators"] = await importer.run()
         if config.import_.reports:
@@ -50,6 +62,9 @@ async def run_import(config: AppConfig):
                 cs_client=cs_client, misp_client=misp_client, state=state,
                 org_uuid=config.misp.org_uuid, tlp_tag=config.tags.tlp,
                 distribution=config.misp.distribution, galaxy_cache=galaxy_cache,
+                dry_run=dry_run,
+                max_items=config.import_.dry_run_max_items if dry_run else 0,
+                init_lookback_ts=lookback_ts if not state.reports.last_timestamp else None,
             )
             totals["reports"] = await importer.run()
         if config.import_.actors:
@@ -57,10 +72,13 @@ async def run_import(config: AppConfig):
                 cs_client=cs_client, misp_client=misp_client, state=state,
                 org_uuid=config.misp.org_uuid, tlp_tag=config.tags.tlp,
                 distribution=config.misp.distribution, galaxy_cache=galaxy_cache,
+                dry_run=dry_run,
+                max_items=config.import_.dry_run_max_items if dry_run else 0,
+                init_lookback_ts=lookback_ts if not state.actors.last_timestamp else None,
             )
             totals["actors"] = await importer.run()
         elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
-        log.info("import_complete", extra={"totals": totals, "elapsed_seconds": round(elapsed, 1)})
+        log.info("import_complete", extra={"totals": totals, "elapsed_seconds": round(elapsed, 1), "dry_run": dry_run})
     finally:
         await misp_client.close()
 

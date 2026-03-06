@@ -18,8 +18,10 @@ import:
   indicators: true
   reports: true
   actors: true
-  init_lookback_days: 30           # How far back on first run
+  init_lookback_days: 30           # How far back on first run (0 = all history)
   batch_size: 2000                 # Attributes per MISP API call
+  dry_run: false                   # Log what would be imported without writing to MISP
+  dry_run_max_items: 5             # Max items per type in dry_run mode
 
 tags:
   tlp: "tlp:amber"

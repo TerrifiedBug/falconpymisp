@@ -65,6 +65,15 @@ class TestIndicatorStreaming:
         call_args = mock_falcon.query_indicator_entities.call_args
         assert "500.xyz" in call_args.kwargs.get("filter", "")
 
+    def test_published_filter_applied(self, cs_client, mock_falcon):
+        mock_falcon.query_indicator_entities.return_value = {
+            "status_code": 200,
+            "body": {"resources": [], "meta": {"pagination": {"total": 0}}},
+        }
+        list(cs_client.get_indicators(published_filter=1709712000))
+        call_args = mock_falcon.query_indicator_entities.call_args
+        assert "published_date:>=1709712000" in call_args.kwargs.get("filter", "")
+
 
 class TestReports:
     def test_get_reports(self, cs_client, mock_falcon):

@@ -28,8 +28,14 @@ class CrowdStrikeClient:
         self._falcon = Intel(**kwargs)
         self._limit = min(request_limit, 5000)
 
-    def get_indicators(self, from_marker: Optional[str] = None) -> Generator[CSIndicator, None, None]:
-        marker_filter = f"_marker:>='{from_marker}'" if from_marker else ""
+    def get_indicators(self, from_marker: Optional[str] = None,
+                       published_filter: Optional[int] = None) -> Generator[CSIndicator, None, None]:
+        filters = []
+        if from_marker:
+            filters.append(f"_marker:>='{from_marker}'")
+        if published_filter:
+            filters.append(f"published_date:>={published_filter}")
+        marker_filter = "+".join(filters)
         total = 1
         while total > 0:
             response = self._falcon.query_indicator_entities(

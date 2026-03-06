@@ -34,6 +34,8 @@ class ImportConfig:
     actors: bool = True
     init_lookback_days: int = 30
     batch_size: int = 2000
+    dry_run: bool = False
+    dry_run_max_items: int = 5
 
 
 @dataclass

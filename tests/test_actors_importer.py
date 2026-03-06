@@ -64,3 +64,13 @@ class TestActorImporter:
         await importer.run()
         assert state.actors.last_timestamp == 1709712000
         assert state.actors.total_imported == 1
+
+    @pytest.mark.asyncio
+    async def test_dry_run_skips_misp_writes(self, mock_cs_client, mock_misp_client, mock_galaxy_cache, state):
+        importer = ActorImporter(cs_client=mock_cs_client, misp_client=mock_misp_client,
+            state=state, org_uuid="test-uuid", tlp_tag="tlp:amber", galaxy_cache=mock_galaxy_cache,
+            dry_run=True, max_items=1)
+        count = await importer.run()
+        assert count == 1
+        mock_misp_client.create_event.assert_not_called()
+        assert state.actors.last_timestamp is None

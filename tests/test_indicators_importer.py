@@ -79,3 +79,14 @@ class TestIndicatorImporter:
         count = await importer.run()
         assert count == 5
         assert mock_misp_client.add_attributes_batch.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_dry_run_skips_misp_writes(self, mock_cs_client, mock_misp_client, state):
+        importer = IndicatorImporter(cs_client=mock_cs_client, misp_client=mock_misp_client,
+            state=state, batch_size=100, org_uuid="test-uuid", tlp_tag="tlp:amber",
+            dry_run=True, max_items=2)
+        count = await importer.run()
+        assert count == 2
+        mock_misp_client.create_event.assert_not_called()
+        mock_misp_client.add_attributes_batch.assert_not_called()
+        assert state.indicators.last_marker is None
