@@ -13,7 +13,8 @@ class ActorImporter:
     def __init__(self, cs_client: CrowdStrikeClient, misp_client: MISPClient,
                  state: ImportState, org_uuid: str = "", tlp_tag: str = "tlp:amber",
                  distribution: int = 0, galaxy_cache: GalaxyCache = None, dry_run: bool = False,
-                 max_items: int = 0, init_lookback_ts: int = None):
+                 max_items: int = 0, init_lookback_ts: int = None,
+                 publish: bool = True):
         self._cs = cs_client
         self._misp = misp_client
         self._state = state
@@ -24,6 +25,7 @@ class ActorImporter:
         self._dry_run = dry_run
         self._max_items = max_items
         self._init_lookback_ts = init_lookback_ts
+        self._publish = publish
         self._existing_actors: set[str] = set()
 
     async def run(self) -> int:
@@ -55,7 +57,7 @@ class ActorImporter:
                 })
                 count += 1
                 continue
-            event = build_actor_event(actor, self._org_uuid, self._tlp_tag, self._distribution)
+            event = build_actor_event(actor, self._org_uuid, self._tlp_tag, self._distribution, publish=self._publish)
             try:
                 result = await self._misp.create_event(event)
                 event_id = str(result.get("Event", {}).get("id", ""))

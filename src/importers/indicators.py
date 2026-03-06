@@ -18,7 +18,8 @@ class IndicatorImporter:
     def __init__(self, cs_client: CrowdStrikeClient, misp_client: MISPClient,
                  state: ImportState, batch_size: int = 2000, org_uuid: str = "",
                  tlp_tag: str = "tlp:amber", distribution: int = 0, tags_config=None,
-                 dry_run: bool = False, max_items: int = 0, init_lookback_days: int = 30):
+                 dry_run: bool = False, max_items: int = 0, init_lookback_days: int = 30,
+                 mappings=None, publish: bool = True):
         self._cs = cs_client
         self._misp = misp_client
         self._state = state
@@ -30,6 +31,8 @@ class IndicatorImporter:
         self._dry_run = dry_run
         self._max_items = max_items
         self._init_lookback_days = init_lookback_days
+        self._mappings = mappings
+        self._publish = publish
         self._feed_events: dict[str, str] = {}
         self._buffers: dict[str, list[MISPAttribute]] = defaultdict(list)
         self._last_marker: Optional[str] = None
@@ -56,7 +59,7 @@ class IndicatorImporter:
             if self._max_items and self._count >= self._max_items:
                 log.info("dry_run_limit_reached", extra={"max_items": self._max_items})
                 break
-            attr = build_indicator_attribute(indicator, self._tags_config)
+            attr = build_indicator_attribute(indicator, self._tags_config, mappings=self._mappings)
             if attr is None:
                 continue
             if self._dry_run:
@@ -102,7 +105,7 @@ class IndicatorImporter:
         if cs_type in self._feed_events:
             return self._feed_events[cs_type]
         event = build_feed_event(indicator_type=cs_type, org_uuid=self._org_uuid,
-            tlp_tag=self._tlp_tag, distribution=self._distribution)
+            tlp_tag=self._tlp_tag, distribution=self._distribution, publish=self._publish)
         result = await self._misp.create_event(event)
         event_id = str(result.get("Event", {}).get("id", ""))
         if not event_id:

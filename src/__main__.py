@@ -11,6 +11,7 @@ from src.misp.galaxy_cache import GalaxyCache
 from src.importers.indicators import IndicatorImporter
 from src.importers.reports import ReportImporter
 from src.importers.actors import ActorImporter
+from src.normalization import load_mappings
 
 log = get_logger(__name__)
 
@@ -24,6 +25,10 @@ async def run_import(config: AppConfig):
     dry_run = config.import_.dry_run
     if dry_run:
         log.info("dry_run_enabled", extra={"max_items": config.import_.dry_run_max_items})
+
+    mappings = load_mappings(config.import_.mappings_file)
+    publish = config.import_.publish
+    log.info("config_loaded", extra={"publish": publish, "mappings_file": config.import_.mappings_file})
 
     cs_client = CrowdStrikeClient(
         client_id=config.crowdstrike.client_id,
@@ -55,6 +60,7 @@ async def run_import(config: AppConfig):
                 tags_config=config.tags, dry_run=dry_run,
                 max_items=config.import_.dry_run_max_items if dry_run else 0,
                 init_lookback_days=config.import_.init_lookback_days,
+                mappings=mappings, publish=publish,
             )
             totals["indicators"] = await importer.run()
         if config.import_.reports:
@@ -65,6 +71,7 @@ async def run_import(config: AppConfig):
                 dry_run=dry_run,
                 max_items=config.import_.dry_run_max_items if dry_run else 0,
                 init_lookback_ts=lookback_ts if not state.reports.last_timestamp else None,
+                publish=publish,
             )
             totals["reports"] = await importer.run()
         if config.import_.actors:
@@ -75,6 +82,7 @@ async def run_import(config: AppConfig):
                 dry_run=dry_run,
                 max_items=config.import_.dry_run_max_items if dry_run else 0,
                 init_lookback_ts=lookback_ts if not state.actors.last_timestamp else None,
+                publish=publish,
             )
             totals["actors"] = await importer.run()
         elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
