@@ -1,0 +1,41 @@
+# Falcon MISP Import Configuration
+# Copy this to config.yml and fill in your credentials
+
+crowdstrike:
+  client_id: ""                    # Required: CrowdStrike API client ID
+  client_secret: ""                # Required: CrowdStrike API client secret
+  base_url: "auto"                 # auto, us-1, us-2, eu-1, usgov-1
+  request_limit: 5000              # Max per API page (5000 for US-1, 2500 for others)
+
+misp:
+  url: ""                          # Required: https://misp.example.com
+  api_key: ""                      # Required: MISP API key
+  verify_ssl: false
+  org_uuid: ""                     # CrowdStrike org UUID in MISP
+  distribution: 0                  # 0=org only, 1=community, 2=connected, 3=all
+
+import:
+  indicators: true
+  reports: true
+  actors: true
+  init_lookback_days: 30           # How far back on first run
+  batch_size: 2000                 # Attributes per MISP API call
+
+tags:
+  tlp: "tlp:amber"
+  confidence: true                 # Tag with CrowdStrike confidence level
+  kill_chain: true                 # Tag with kill chain phase when available
+  taxonomies:
+    iep: false
+    iep2: false
+    workflow: false
+
+logging:
+  level: "INFO"                    # DEBUG, INFO, WARNING, ERROR
+  format: "json"                   # json or text
+
+state_file: "/app/data/state.json"
+
+proxy:
+  http: null
+  https: null

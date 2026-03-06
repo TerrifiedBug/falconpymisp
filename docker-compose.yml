@@ -1,0 +1,7 @@
+services:
+  falcon-misp:
+    build: .
+    volumes:
+      - ./config.yml:/app/config.yml:ro
+      - ./data:/app/data
+    restart: "no"
