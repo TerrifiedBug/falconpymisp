@@ -32,7 +32,7 @@ class ReportImporter:
         last_timestamp = from_timestamp
         for report in reports:
             if report.name in self._existing_reports:
-                log.info("report_skipped", extra={"name": report.name, "reason": "exists"})
+                log.info("report_skipped", extra={"report_name": report.name, "reason": "exists"})
                 continue
             event = build_report_event(report, self._org_uuid, self._tlp_tag, self._distribution)
             try:
@@ -50,9 +50,9 @@ class ReportImporter:
                             await self._misp.attach_galaxy_cluster(event_id, cluster["id"])
                 if report.created_date and report.created_date > (last_timestamp or 0):
                     last_timestamp = report.created_date
-                log.info("report_imported", extra={"name": report.name, "event_id": event_id})
+                log.info("report_imported", extra={"report_name": report.name, "event_id": event_id})
             except Exception as e:
-                log.error("report_import_failed", extra={"name": report.name, "error": str(e)})
+                log.error("report_import_failed", extra={"report_name": report.name, "error": str(e)})
         if last_timestamp:
             self._state.reports.last_timestamp = last_timestamp
         self._state.reports.total_imported += count
