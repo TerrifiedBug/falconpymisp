@@ -1,0 +1,4 @@
+crowdstrike-falconpy>=1.0.0
+pymisp>=2.4.170
+aiohttp>=3.9.0
+pyyaml>=6.0
