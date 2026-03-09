@@ -1,42 +1,42 @@
 # falcon-misp
 
-Import CrowdStrike Falcon threat intelligence into MISP. Pulls indicators, reports, and adversary profiles from the Falcon Intel API and pushes them into your MISP instance as structured events.
+Pulls CrowdStrike Falcon threat intel into MISP -- indicators, reports, and adversary profiles. You point it at both APIs, it does the rest.
 
-This is a ground-up rewrite of [CrowdStrike's misp-tools](https://github.com/CrowdStrike/misp-tools). The original worked, but it was slow, hard to configure, and the codebase had accumulated a lot of rough edges over time. This version replaces ~4,800 lines of threaded Python and INI config with ~1,200 lines of async Python and a single YAML file.
+Rewrite of [CrowdStrike's misp-tools](https://github.com/CrowdStrike/misp-tools). The original is ~4,800 lines of threaded Python with two INI config files. This is ~1,200 lines of async Python with one YAML file.
 
 ## What it imports
 
-**Indicators** -- IPs, domains, hashes, URLs, email addresses, and about 20 other types. These get batched into per-type feed events in MISP (one event for MD5s, one for domains, etc.) rather than creating thousands of individual events.
+Indicators (IPs, domains, hashes, URLs, email addresses, ~20 types total), reports, and actors. Indicators go into per-type feed events in MISP -- one event for all MD5s, one for all domains, etc. Actor, family, and kill-chain context is in attribute tags, so you can filter with `restSearch` without needing a separate event for each grouping.
 
-**Reports** -- CrowdStrike threat analysis documents. Each becomes its own MISP event with the report description, tags, and linked galaxy clusters.
-
-**Actors** -- Adversary profiles (BEAR, PANDA, SPIDER, etc.). One MISP event per actor with motivations, target industries, and galaxy links.
+Reports each get their own MISP event with description, tags, and galaxy cluster links. Same for actors (BEAR, PANDA, SPIDER, etc.) -- one event per actor with motivations, targets, and galaxy links.
 
 ## How it works
 
-The tool runs once and exits. Here's the sequence:
+Runs once and exits. Schedule it however you want.
 
-1. Reads a YAML config file
-2. Loads previous state from `state.json` so it picks up where it left off
+1. Reads config YAML
+2. Loads state from `state.json` (picks up where it left off)
 3. Connects to CrowdStrike and MISP, pre-loads galaxy clusters into memory
-4. Runs all three importers -- indicators use async batching with `aiohttp`, reports and actors run sequentially per-event
-5. Writes updated state back to disk with atomic file writes (write to temp file, rename -- crash-safe)
+4. Runs all three importers
+5. Saves state back to disk (atomic write -- temp file then rename, won't corrupt on crash)
 
-Indicators are the high-volume piece. The tool streams them from CrowdStrike using cursor-based pagination (the `_marker` field), buffers them by type, and flushes in configurable batches -- 2,000 attributes per API call by default. It never re-fetches indicators it already processed. The cursor handles that, and MISP's built-in duplicate rejection covers edge cases.
+Indicators are the heavy part. Streams them from CrowdStrike using cursor pagination (`_marker` field), buffers by type, flushes in batches of 2,000 attributes per API call. Never re-fetches what it already processed -- the cursor handles that. MISP's duplicate rejection catches edge cases.
 
-Reports and actors are simpler. The tool checks what already exists in MISP by name and skips duplicates. Galaxy clusters (threat actors, malware from malpedia, ATT&CK patterns) are matched automatically by name from a cache built at startup. No manual mapping file needed.
+Reports and actors are lighter. Checks what's already in MISP by name, skips dupes. Galaxy clusters (threat actors, malpedia, ATT&CK patterns) match automatically by name from a cache built at startup -- no manual mapping file.
 
 ## How it differs from the original
 
-The original CrowdStrike tool ([misp-tools](https://github.com/CrowdStrike/misp-tools)) has been around for a while. It works, but running it in production surfaces a few real problems.
+[misp-tools](https://github.com/CrowdStrike/misp-tools) has been around for a while and it works. But if you've run it in production you've probably hit some of the same issues.
 
-The biggest is speed. The original checks every single indicator against MISP before importing it -- with 100K+ indicators, that's 100K+ individual API calls just for deduplication. This version uses CrowdStrike's cursor pagination to only fetch new data. MISP API calls drop from ~100,000 to roughly 50 (batches of 2,000).
+Speed is the big one. The original checks every indicator against MISP before importing. 100K+ indicators means 100K+ API calls just to deduplicate. This version uses CrowdStrike's cursor pagination -- only fetches new stuff. Total MISP API calls go from ~100,000 to about 50.
 
-Configuration is also more involved than it needs to be. Two INI files, 30+ settings, and a `galaxy.ini` mapping file you maintain by hand. This version is one YAML file. Galaxy mappings load automatically from your MISP instance at startup.
+Config is also annoying in the original. Two INI files, 30+ settings between them, plus a `galaxy.ini` you maintain by hand for mapping malware families to MISP galaxies. Here it's one YAML file. Galaxies load from MISP automatically at startup.
 
-The original creates one MISP event per malware family for indicators, which tends to produce hundreds of events over time. This version creates one event per indicator type (MD5, domain, IP, etc.) -- about 20 events total.
+The event model is where things really diverge. The original creates per-type feed events (like we do) *plus* per-malware-family events on top. Every indicator goes into both -- its type event and its family event. The intent was to let analysts pull up a single "Malware Family: Emotet" event and see everything related. Problem is, at scale this causes real MISP headaches: all your indicators are stored twice, correlation noise doubles (and MISP's over-correlation protection starts suppressing correlations past 20 matching attributes), and busy families like Cobalt Strike pile up thousands of attributes in one event that's painful to load or sync. MISP's own feed docs recommend a "fixed event" approach -- one event per feed, appended over time -- which is basically what our per-type model does. Want "all MD5s tied to Emotet"? Filter by tag in `restSearch`. No duplicated data needed.
 
-Tags in the original were inconsistent across indicator types. This version standardizes to MISP taxonomy convention: `key="value"` (e.g., `crowdstrike:confidence="high"`, `kill-chain:phase="command-control"`). There's also a dry-run mode, which the original lacks.
+Tags in the original are inconsistent. We standardize to MISP taxonomy: `key="value"` (like `crowdstrike:confidence="high"`, `kill-chain:phase="command-control"`).
+
+There's also a dry-run mode now, which the original doesn't have.
 
 | | Original | This version |
 |---|---|---|
@@ -45,7 +45,7 @@ Tags in the original were inconsistent across indicator types. This version stan
 | Lines of code | ~4,800 | ~1,200 |
 | Indicator dedup | Per-indicator MISP lookup | Cursor-based, no lookups |
 | Galaxy mapping | Manual INI file | Auto-loaded from MISP |
-| Event model | Per-malware-family | Per-indicator-type |
+| Event model | Per-type + per-family (duplicated) | Per-type only (tags for context) |
 | Logging | Print statements | Structured JSON |
 | State tracking | Multiple timestamp files | Single atomic JSON |
 | Async | Threading | asyncio + aiohttp |
@@ -54,13 +54,11 @@ Tags in the original were inconsistent across indicator types. This version stan
 
 ## Setup
 
-### Requirements
+You need:
 
 - Python 3.12+
-- A CrowdStrike Falcon API key with READ access to Adversaries, Indicators, and Reports (Falcon Threat Intelligence)
-- A MISP instance with an API key and a "CrowdStrike" organization created
-
-### Install
+- CrowdStrike Falcon API key with READ on Adversaries, Indicators, and Reports
+- MISP instance with an API key and a "CrowdStrike" org
 
 ```bash
 pip install -r requirements.txt
@@ -68,18 +66,14 @@ pip install -r requirements.txt
 
 Dependencies: `crowdstrike-falconpy` >= 1.0.0, `pymisp` >= 2.4.170, `aiohttp` >= 3.9.0, `pyyaml` >= 6.0.
 
-### Configure
-
-Copy the example configs and fill in your credentials:
+Copy the example configs:
 
 ```bash
 cp config.example.yml config.yml
 cp mappings.example.yml mappings.yml
 ```
 
-At minimum you need to set `client_id`, `client_secret`, `misp.url`, `misp.api_key`, and `misp.org_uuid`. Everything else has sensible defaults.
-
-The config looks like this:
+You need to fill in `client_id`, `client_secret`, `misp.url`, `misp.api_key`, and `misp.org_uuid` at minimum. The rest has defaults that are fine to start with.
 
 ```yaml
 crowdstrike:
@@ -117,11 +111,11 @@ logging:
 state_file: "/app/data/state.json"
 ```
 
-See `config.example.yml` for the full list of options including proxy settings and taxonomy toggles.
+Full list of options (proxy, taxonomy toggles, etc.) is in `config.example.yml`.
 
 ### Mappings (optional)
 
-The mappings file controls how CrowdStrike threat types and kill chain phases translate to MISP taxonomy tags. Without it, unmapped values fall back to `crowdstrike:threat-type="{raw}"`.
+Controls how CrowdStrike threat types and kill chain phases map to MISP taxonomy tags. If you skip it, unmapped values just become `crowdstrike:threat-type="{raw}"`.
 
 ```yaml
 threat_types:
@@ -135,27 +129,23 @@ kill_chain:
   command_and_control: "command-control"
 ```
 
-See `mappings.example.yml` for the full set.
+Full set in `mappings.example.yml`.
 
 ## Usage
 
-### Run directly
-
 ```bash
+# run directly
 python -m src config.yml
-```
 
-### Docker Compose
-
-```bash
+# or with docker
 docker-compose up
 ```
 
-Mounts `config.yml` and `mappings.yml` as read-only volumes, persists state to `./data/`.
+Docker mounts `config.yml` and `mappings.yml` read-only and persists state to `./data/`.
 
 ### Dry-run
 
-Set `dry_run: true` in the config to preview what would be imported. You can also log to a file for easier review:
+Set `dry_run: true` in config to see what would be imported without writing anything to MISP. Pair with file logging if you want to review it after:
 
 ```yaml
 import:
@@ -166,11 +156,9 @@ logging:
   file: "./dry_run.log"
 ```
 
-Nothing gets written to MISP -- the tool just logs what it would have done.
+## State
 
-## State and resumption
-
-The tool tracks its position in `state.json`:
+Tracks position in `state.json`:
 
 ```json
 {
@@ -192,34 +180,34 @@ The tool tracks its position in `state.json`:
 }
 ```
 
-Next run picks up from where it stopped. Delete `state.json` to start fresh.
+Next run picks up where it left off. Delete `state.json` to start over.
 
 ## Scheduling
 
-The tool runs once and exits, so schedule it externally:
+Runs once and exits. Use whatever scheduler you like:
 
-- **cron:** `0 */6 * * * cd /path/to/falcon-misp && python -m src config.yml`
-- **Docker:** use `restart: always` in Compose, or a Kubernetes CronJob
-- **systemd:** standard timer unit pointing at the Compose or Python command
+- cron: `0 */6 * * * cd /path/to/falcon-misp && python -m src config.yml`
+- Docker: `restart: always` or a Kubernetes CronJob
+- systemd timer
 
 ## Project structure
 
 ```
 src/
-  __main__.py              # Entry point and orchestrator
-  config.py                # YAML config loading and validation
-  log.py                   # Structured JSON logging
-  state.py                 # State persistence (atomic writes)
-  normalization.py         # Tag mapping loader
+  __main__.py              # entry point, orchestrator
+  config.py                # YAML config loading + validation
+  log.py                   # structured JSON logging
+  state.py                 # atomic state persistence
+  normalization.py         # tag mapping loader
   crowdstrike/
-    client.py              # FalconPy wrapper with pagination
+    client.py              # FalconPy wrapper, pagination
     models.py              # CSIndicator, CSReport, CSActor
   misp/
-    client.py              # Async MISP client (aiohttp)
-    models.py              # Event and attribute builders
-    galaxy_cache.py        # Galaxy cluster pre-loader
+    client.py              # async MISP client (aiohttp)
+    models.py              # event + attribute builders
+    galaxy_cache.py        # galaxy cluster pre-loader
   importers/
-    indicators.py          # Async batching pipeline
-    reports.py             # Per-report event creation
-    actors.py              # Per-actor event creation
+    indicators.py          # async batching pipeline
+    reports.py             # per-report event creation
+    actors.py              # per-actor event creation
 ```
