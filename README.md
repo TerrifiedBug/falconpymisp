@@ -95,10 +95,12 @@ import:
   indicators: true
   reports: true
   actors: true
+  attach_galaxies: true
   init_lookback_days: 30
   batch_size: 2000
   dry_run: false
   dry_run_max_items: 5
+  no_hashes: false
   publish: true
   mappings_file: "/app/mappings.yml"
 ```
@@ -108,10 +110,12 @@ import:
 | `indicators` | `true` | Pull in indicators (IPs, hashes, domains, etc.). |
 | `reports` | `true` | Pull in CrowdStrike intel reports. |
 | `actors` | `true` | Pull in threat actor profiles. |
+| `attach_galaxies` | `true` | Attach MISP galaxy clusters to imported report/actor events. Set `false` if `/galaxies/attachCluster` is unstable or slow. |
 | `init_lookback_days` | `30` | First run only: how far back to go. `0` grabs everything CrowdStrike has. After the first run this doesn't matter, it picks up from the saved cursor. |
 | `batch_size` | `2000` | Indicator attributes per MISP API call. Bigger = faster but more memory. 2000 works well. |
 | `dry_run` | `false` | Set `true` to see what _would_ be imported without writing to MISP. Good for testing your config. |
 | `dry_run_max_items` | `5` | In dry-run mode, only process this many items per type. Keeps the output short. |
+| `no_hashes` | `false` | Skip SHA1, SHA256, and MD5 hash indicators. |
 | `publish` | `true` | Mark events as "published" when created. Published events show up in feeds and correlations. Set `false` if you want to eyeball them first. |
 | `mappings_file` | `"/app/mappings.yml"` | Path to the threat type / kill chain mappings file. Change this if you're not using Docker. |
 

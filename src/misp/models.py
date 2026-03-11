@@ -1,15 +1,13 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from pymisp import MISPEvent, MISPAttribute, MISPTag
+from pymisp import MISPEvent, MISPAttribute
 
 from src.crowdstrike.models import CSIndicator, CSReport, CSActor, cs_type_to_misp_type, cs_type_to_misp_category
 
 
-def _make_tag(name: str) -> MISPTag:
-    tag = MISPTag()
-    tag.name = name
-    return tag
+def _make_tag(name: str) -> str:
+    return name
 
 
 def _timestamp_to_date(ts: int) -> str:

@@ -14,6 +14,16 @@ MAX_RETRIES = 3
 BASE_DELAY = 1.0
 
 
+def _jsonable(value: Any) -> Any:
+    if hasattr(value, "to_dict") and callable(value.to_dict):
+        return value.to_dict()
+    if isinstance(value, dict):
+        return {k: _jsonable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(v) for v in value]
+    return value
+
+
 class MISPClient:
     def __init__(self, url: str, api_key: str, verify_ssl: bool = False):
         self._base_url = url.rstrip("/")
@@ -35,7 +45,7 @@ class MISPClient:
 
     async def _request(self, method: str, path: str, data: Any = None) -> dict:
         url = f"{self._base_url}{path}"
-        body = json.dumps(data) if data else None
+        body = json.dumps(_jsonable(data)) if data else None
         for attempt in range(MAX_RETRIES):
             try:
                 if method == "GET":
@@ -70,6 +80,9 @@ class MISPClient:
 
     async def update_event(self, event_id: str, event: MISPEvent) -> dict:
         return await self._request("POST", f"/events/edit/{event_id}", {"Event": event.to_dict()})
+
+    async def publish_event(self, event_id: str) -> dict:
+        return await self._request("POST", f"/events/publish/{event_id}", {})
 
     async def search_events(self, **kwargs) -> list:
         result = await self._request("POST", "/events/restSearch", kwargs)

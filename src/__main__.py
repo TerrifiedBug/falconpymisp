@@ -28,7 +28,12 @@ async def run_import(config: AppConfig):
 
     mappings = load_mappings(config.import_.mappings_file)
     publish = config.import_.publish
-    log.info("config_loaded", extra={"publish": publish, "mappings_file": config.import_.mappings_file})
+    attach_galaxies = config.import_.attach_galaxies
+    log.info("config_loaded", extra={
+        "publish": publish,
+        "attach_galaxies": attach_galaxies,
+        "mappings_file": config.import_.mappings_file,
+    })
 
     cs_client = CrowdStrikeClient(
         client_id=config.crowdstrike.client_id,
@@ -48,8 +53,10 @@ async def run_import(config: AppConfig):
             return
         state = ImportState(config.state_file)
         lookback_ts = _lookback_timestamp(config.import_.init_lookback_days)
-        galaxy_cache = GalaxyCache()
-        await galaxy_cache.load(misp_client)
+        galaxy_cache = None
+        if attach_galaxies and (config.import_.reports or config.import_.actors):
+            galaxy_cache = GalaxyCache()
+            await galaxy_cache.load(misp_client)
         start_time = datetime.now(timezone.utc)
         totals = {}
         if config.import_.indicators:
@@ -60,7 +67,7 @@ async def run_import(config: AppConfig):
                 tags_config=config.tags, dry_run=dry_run,
                 max_items=config.import_.dry_run_max_items if dry_run else 0,
                 init_lookback_days=config.import_.init_lookback_days,
-                mappings=mappings, publish=publish,
+                mappings=mappings, publish=publish, no_hashes=config.import_.no_hashes,
             )
             totals["indicators"] = await importer.run()
         if config.import_.reports:
@@ -71,6 +78,7 @@ async def run_import(config: AppConfig):
                 dry_run=dry_run,
                 max_items=config.import_.dry_run_max_items if dry_run else 0,
                 init_lookback_ts=lookback_ts if not state.reports.last_timestamp else None,
+                attach_galaxies=attach_galaxies,
                 publish=publish,
             )
             totals["reports"] = await importer.run()
@@ -82,6 +90,7 @@ async def run_import(config: AppConfig):
                 dry_run=dry_run,
                 max_items=config.import_.dry_run_max_items if dry_run else 0,
                 init_lookback_ts=lookback_ts if not state.actors.last_timestamp else None,
+                attach_galaxies=attach_galaxies,
                 publish=publish,
             )
             totals["actors"] = await importer.run()
@@ -92,13 +101,37 @@ async def run_import(config: AppConfig):
 
 
 def main():
-    config_path = sys.argv[1] if len(sys.argv) > 1 else "/app/config.yml"
+    config_path = sys.argv[1] if len(sys.argv) > 1 else "config.yml"
     try:
         config = load_config(config_path)
     except ConfigError as e:
         print(f"Configuration error: {e}", file=sys.stderr)
         sys.exit(1)
-    setup_logging(level=config.logging.level, fmt=config.logging.format, log_file=config.logging.file)
+    file_msg_allowlist = None
+    if config.import_.dry_run and config.logging.file:
+        file_msg_allowlist = {
+            "falcon_misp_import_start",
+            "dry_run_enabled",
+            "config_loaded",
+            "indicator_import_start",
+            "indicator_fetch_complete",
+            "indicator_progress",
+            "indicator_import_complete",
+            "report_import_start",
+            "report_import_complete",
+            "actor_import_start",
+            "actor_import_complete",
+            "import_complete",
+            "dry_run_indicator",
+            "dry_run_report",
+            "dry_run_actor",
+        }
+    setup_logging(
+        level=config.logging.level,
+        fmt=config.logging.format,
+        log_file=config.logging.file,
+        file_msg_allowlist=file_msg_allowlist,
+    )
     log.info("falcon_misp_import_start", extra={"config_path": config_path})
     asyncio.run(run_import(config))
 

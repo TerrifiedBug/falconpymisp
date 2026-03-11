@@ -32,10 +32,12 @@ class ImportConfig:
     indicators: bool = True
     reports: bool = True
     actors: bool = True
+    attach_galaxies: bool = True
     init_lookback_days: int = 30
     batch_size: int = 2000
     dry_run: bool = False
     dry_run_max_items: int = 5
+    no_hashes: bool = False
     publish: bool = True
     mappings_file: str = "/app/mappings.yml"
 

@@ -1,6 +1,8 @@
 services:
   falcon-misp:
     build: .
+    user: "0:0"
+    mem_limit: 8g
     volumes:
       - ./config.yml:/app/config.yml:ro
       - ./mappings.yml:/app/mappings.yml:ro
