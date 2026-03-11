@@ -3,7 +3,7 @@
 
 crowdstrike:
   client_id: ""                    # Required: CrowdStrike API client ID
-  client_secret: ""                # Required: CrowdStrike API client secret
+  client_secret: " "                # Required: CrowdStrike API client secret
   base_url: "auto"                 # auto, us-1, us-2, eu-1, usgov-1
   request_limit: 5000              # Max per API page (5000 for US-1, 2500 for others)
 
@@ -18,10 +18,12 @@ import:
   indicators: true
   reports: true
   actors: true
+  attach_galaxies: true            # Set false to skip galaxy attach calls (/galaxies/attachCluster)
   init_lookback_days: 30           # How far back on first run (0 = all history)
   batch_size: 2000                 # Attributes per MISP API call
   dry_run: false                   # Log what would be imported without writing to MISP
   dry_run_max_items: 5             # Max items per type in dry_run mode
+  no_hashes: false                 # Do not import SHA1, SHA256 or MD5 hash indicators
   publish: true                    # Publish events on creation (visible in feeds/correlations)
   mappings_file: "/app/mappings.yml"  # Path to threat type / kill chain mappings
 
